@@ -12,12 +12,11 @@
       rel="stylesheet"
     />
 
-    <!-- Tailwind CDN FIRST -->
+    <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Then configure it -->
     <script>
-      // Set theme on initial load to prevent FOUC (Flash of Unstyled Content)
+      // Dark mode toggle based on system/localStorage
       if (
         localStorage.theme === "dark" ||
         (!("theme" in localStorage) &&
@@ -28,7 +27,7 @@
         document.documentElement.classList.remove("dark");
       }
 
-      // Configure Tailwind CSS to use the 'class' strategy for dark mode.
+      // Configure Tailwind
       tailwind.config = {
         darkMode: "class",
       };
@@ -58,7 +57,7 @@
   >
     <div id="root"></div>
 
-    <!-- Vite entry file (NOT /index.tsx) -->
-    <script type="module" src="/src/index.tsx"></script>
+    <!-- Vite entry -->
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
