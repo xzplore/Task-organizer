@@ -15,22 +15,26 @@
     <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Dark mode + Tailwind config -->
     <script>
-      // Dark mode toggle based on system/localStorage
-      if (
-        localStorage.theme === "dark" ||
-        (!("theme" in localStorage) &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches)
-      ) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+      (() => {
+        const theme = localStorage.getItem("theme");
+        if (
+          theme === "dark" ||
+          (!theme &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches)
+        ) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
 
-      // Configure Tailwind
-      tailwind.config = {
-        darkMode: "class",
-      };
+        window.tailwind = {
+          config: {
+            darkMode: "class",
+          },
+        };
+      })();
     </script>
 
     <style>
@@ -52,6 +56,7 @@
       }
     </style>
   </head>
+
   <body
     class="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-300"
   >
