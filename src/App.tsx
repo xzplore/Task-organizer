@@ -270,7 +270,7 @@ const App: React.FC = () => {
               />
 
               <footer className="text-center p-4 text-xs text-zinc-500 dark:text-zinc-600 mt-8">
-                حقوق الطبع محفوظة لمشروع مادة مهارات الدراسة © {new Date().getFullYear()}
+                 لمشروع مادة مهارات الدراسة © {new Date().getFullYear()}
               </footer>
             </>
           ) : (
