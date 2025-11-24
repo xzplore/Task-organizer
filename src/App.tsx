@@ -24,8 +24,7 @@ const App: React.FC = () => {
     try {
       const savedTasks = localStorage.getItem('tasks');
       return savedTasks ? JSON.parse(savedTasks) : [];
-    } catch (error)
-      {
+    } catch (error) {
       console.error("Could not parse tasks from localStorage", error);
       return [];
     }
@@ -38,25 +37,27 @@ const App: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // This effect runs once on mount to handle daily reset
+  // reset tasks daily
   useEffect(() => {
     const lastVisit = localStorage.getItem('lastVisit');
     const today = new Date().toISOString().split('T')[0];
 
     if (lastVisit !== today) {
-      setTasks([]); // Clear tasks for the new day
+      setTasks([]);
       localStorage.setItem('tasks', '[]');
       localStorage.setItem('lastVisit', today);
     }
   }, []);
 
+  // update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000); // Update every minute
+    }, 60000);
     return () => clearInterval(timer);
   }, []);
 
+  // sync theme with html + localStorage
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -66,54 +67,61 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // save tasks
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
-  // Effect to check for and send notifications for upcoming tasks
+  // 🔔 auto notifications for tasks (بدون طلب إذن هنا)
   useEffect(() => {
-    const showNotification = (task: Task) => {
-      if (!("Notification" in window)) {
-        console.log("This browser does not support desktop notification");
-        return;
-      }
-      const send = () => {
-        new Notification(`تذكير بمهمة: ${task.text}`, {
-          body: `هذه المهمة ستنتهي خلال 5 دقائق.`,
-          icon: '/favicon.ico',
-        });
-        audioRef.current?.play();
-        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, notificationSent: true } : t));
-      };
-      if (Notification.permission === "granted") {
-        send();
-      } else if (Notification.permission !== "denied") {
-        if (typeof Notification.requestPermission === 'function') {
-          Notification.requestPermission(permission => {
-            if (permission === "granted") send();
-          });
+    if (!("Notification" in window)) {
+      console.log("This browser does not support desktop notification");
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      // ما نطلب الإذن هنا، بس نطلع لو permission مو granted
+      console.log("Notification permission is not granted yet, skip auto notifications");
+      return;
+    }
+
+    const fiveMinutes = 5 * 60 * 1000;
+
+    setTasks(prev =>
+      prev.map(task => {
+        if (
+          task.dueDate &&
+          !task.completed &&
+          !task.notificationSent
+        ) {
+          const dueTime = new Date(task.dueDate).getTime();
+          const timeDiff = dueTime - currentTime.getTime();
+
+          if (timeDiff > 0 && timeDiff <= fiveMinutes) {
+            // نرسل إشعار فعلي
+            try {
+              new Notification(`تذكير بمهمة: ${task.text}`, {
+                body: `هذه المهمة ستنتهي خلال 5 دقائق.`,
+                icon: '/favicon.ico',
+              });
+              audioRef.current?.play();
+              return { ...task, notificationSent: true };
+            } catch (e) {
+              console.error("Failed to show notification", e);
+            }
+          }
         }
-      }
-    };
+        return task;
+      })
+    );
+  }, [currentTime]); // تعتمد على الوقت فقط، ونستخدم setTasks داخلياً
 
-    tasks.forEach(task => {
-      if (task.dueDate && !task.completed && !task.notificationSent) {
-        const dueTime = new Date(task.dueDate).getTime();
-        const timeDiff = dueTime - currentTime.getTime();
-        const fiveMinutes = 5 * 60 * 1000;
-        if (timeDiff > 0 && timeDiff <= fiveMinutes) {
-          showNotification(task);
-        }
-      }
-    });
-  }, [currentTime, tasks]);
-
-
+  // auto hide in-app notification banner
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => {
         setNotification(null);
-      }, 4000); // Auto-dismiss after 4 seconds
+      }, 4000);
       return () => clearTimeout(timer);
     }
   }, [notification]);
@@ -128,27 +136,48 @@ const App: React.FC = () => {
     
     const commandText = trimmedText.toLowerCase();
 
+    // 🔔 أمر خاص لاختبار الإشعارات
     if (commandText === 'alarm') {
       setNotification('جاري اختبار الإشعار والصوت...');
+
       audioRef.current?.play();
-      if ("Notification" in window) {
-        const sendTest = () => new Notification('تنبيه تجريبي!', { body: 'هذا هو شكل الإشعار الذي سيصلك.'});
-        if (Notification.permission === "granted") {
-          sendTest();
-        } else if (Notification.permission !== "denied") {
-          if (typeof Notification.requestPermission === 'function') {
-            Notification.requestPermission(p => {
-              if (p === "granted") sendTest();
-            });
-          }
-        } else {
-          setNotification('الإشعارات معطلة في متصفحك.');
-        }
-      } else {
+
+      if (!("Notification" in window)) {
         setNotification('متصفحك لا يدعم الإشعارات.');
+        return;
+      }
+
+      const sendTest = () => {
+        try {
+          new Notification('تنبيه تجريبي!', {
+            body: 'هذا هو شكل الإشعار الذي سيصلك.',
+            icon: '/favicon.ico',
+          });
+        } catch (e) {
+          console.error("Failed to show test notification", e);
+        }
+      };
+
+      if (Notification.permission === "granted") {
+        sendTest();
+      } else {
+        Notification.requestPermission()
+          .then(permission => {
+            if (permission === "granted") {
+              sendTest();
+            } else if (permission === "denied") {
+              setNotification('الإشعارات مرفوضة في متصفحك.');
+            } else {
+              setNotification('لم يتم تفعيل الإشعارات.');
+            }
+          })
+          .catch(err => {
+            console.error("Notification permission request failed", err);
+          });
       }
       return;
     }
+
     if (commandText === 'admin') {
       setIsAdmin(true);
       setNotification('وضع المسؤول مفعل!');
@@ -159,10 +188,12 @@ const App: React.FC = () => {
       setNotification('تم إلغاء تفعيل وضع المسؤول.');
       return;
     }
+
     if (tasks.some(task => task.text.trim().toLowerCase() === trimmedText.toLowerCase())) {
       setNotification('هذه المهمة موجودة بالفعل!');
       return;
     }
+
     const newTask: Task = {
       id: crypto.randomUUID(),
       text: trimmedText,
@@ -199,17 +230,20 @@ const App: React.FC = () => {
   const { todayTasks, overdueTasks } = useMemo(() => {
     const todayTasksList: Task[] = [];
     const overdueTasksList: Task[] = [];
+
     sortedTasks.forEach(task => {
       const isOverdue = !task.completed && task.dueDate && new Date(task.dueDate) < currentTime;
       if (isOverdue) overdueTasksList.push(task);
       else todayTasksList.push(task);
     });
+
     const priorityOrder: { [key in TaskPriority]: number } = { high: 1, medium: 2, low: 3 };
     overdueTasksList.sort((a, b) => {
-       const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
       if (priorityDiff !== 0) return priorityDiff;
       return new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
     });
+
     return { todayTasks: todayTasksList, overdueTasks: overdueTasksList };
   }, [sortedTasks, currentTime]);
 
@@ -227,7 +261,11 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-       <audio ref={audioRef} src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" preload="auto" />
+      <audio
+        ref={audioRef}
+        src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"
+        preload="auto"
+      />
       <Header 
         theme={theme} 
         onToggleTheme={toggleTheme} 
@@ -270,7 +308,7 @@ const App: React.FC = () => {
               />
 
               <footer className="text-center p-4 text-xs text-zinc-500 dark:text-zinc-600 mt-8">
-                 لمشروع مادة مهارات الدراسة © {new Date().getFullYear()}
+                مشروع مادة مهارة الدراسة © {new Date().getFullYear()}
               </footer>
             </>
           ) : (
