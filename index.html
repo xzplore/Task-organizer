@@ -12,14 +12,28 @@
       rel="stylesheet"
     >
 
-    <!-- Tailwind CDN + إعداد dark mode بـ class -->
+    <!-- 📌 تفعيل الـ dark mode قبل تحميل Tailwind -->
     <script>
-      tailwind = {
-        config: {
-          darkMode: 'class',
-        },
-      };
+      (function () {
+        const root = document.documentElement;
+        const saved = localStorage.getItem('theme');
+
+        const isDark =
+          saved === 'dark' ||
+          (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+        root.classList.toggle('dark', isDark);
+        root.style.colorScheme = isDark ? 'dark' : 'light';
+
+        window.tailwind = {
+          config: {
+            darkMode: 'class',
+          },
+        };
+      })();
     </script>
+
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
@@ -35,8 +49,11 @@
       }
     </style>
   </head>
+
   <body class="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-200 transition-colors duration-300">
     <div id="root"></div>
+
+    <!-- هنا المسار الصحيح -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
