@@ -13,21 +13,22 @@
     >
 
     <script>
-      // تهيئة الثيم قبل تحميل Tailwind
+      // تهيئة الثيم + إعداد Tailwind قبل التحميل لتفادي FOUC
       (() => {
+        const root = document.documentElement;
         const theme = localStorage.getItem('theme');
-        if (
+        const isDark =
           theme === 'dark' ||
-          (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-        ) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+          (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-        // إعداد Tailwind
+        root.classList.toggle('dark', isDark);
+        root.style.colorScheme = isDark ? 'dark' : 'light';
+
+        // إعداد Tailwind لاستخدام dark mode عن طريق class
         window.tailwind = {
-          config: { darkMode: 'class' }
+          config: {
+            darkMode: 'class',
+          },
         };
       })();
     </script>
@@ -40,21 +41,26 @@
         font-family: 'Cairo', sans-serif;
       }
       @keyframes fade-in-down {
-        from { opacity: 0; transform: translate(-50%, -20px); }
-        to { opacity: 1; transform: translate(-50%, 0); }
+        from {
+          opacity: 0;
+          transform: translate(-50%, -20px);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
       }
       .animate-fade-in-down {
         animation: fade-in-down 0.3s ease-out forwards;
       }
     </style>
   </head>
-
   <body
     class="bg-zinc-100 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-200 transition-colors duration-300"
   >
     <div id="root"></div>
 
-    <!-- Entry file الصحيح لمشاريع Vite -->
+    <!-- ✅ مدخل Vite الصحيح -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
