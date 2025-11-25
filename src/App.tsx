@@ -3,10 +3,12 @@ import { Task, TaskPriority } from './types';
 import TaskInput from './components/TaskInput';
 import TaskList from './components/TaskList';
 import ProductivityTracker from './components/ProductivityTracker';
-import Notification from './components/Notification';
+// FIX: Renamed `Notification` to `NotificationComponent` to avoid conflict with the browser's Notification API.
+import NotificationComponent from './components/Notification';
 import Header from './components/Header';
 import NavigationMenu from './components/NavigationMenu';
 import PomodoroTimer from './components/PomodoroTimer';
+import NotificationPermissionBanner from './components/NotificationPermissionBanner';
 
 type View = 'tasks' | 'pomodoro';
 
@@ -24,7 +26,8 @@ const App: React.FC = () => {
     try {
       const savedTasks = localStorage.getItem('tasks');
       return savedTasks ? JSON.parse(savedTasks) : [];
-    } catch (error) {
+    } catch (error)
+      {
       console.error("Could not parse tasks from localStorage", error);
       return [];
     }
@@ -35,29 +38,26 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentView, setCurrentView] = useState<View>('tasks');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState('default');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // reset tasks daily
+  // This effect runs once on mount to check notification permission
   useEffect(() => {
-    const lastVisit = localStorage.getItem('lastVisit');
-    const today = new Date().toISOString().split('T')[0];
-
-    if (lastVisit !== today) {
-      setTasks([]);
-      localStorage.setItem('tasks', '[]');
-      localStorage.setItem('lastVisit', today);
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    } else {
+      console.log("This browser does not support desktop notification");
+      setNotificationPermission('denied');
     }
   }, []);
 
-  // update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000);
+    }, 60000); // Update every minute
     return () => clearInterval(timer);
   }, []);
 
-  // sync theme with html + localStorage
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -67,64 +67,68 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // save tasks
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
-  // 🔔 auto notifications for tasks (بدون طلب إذن هنا)
+  // Effect to check for and send notifications for upcoming tasks
   useEffect(() => {
-    if (!("Notification" in window)) {
-      console.log("This browser does not support desktop notification");
+    if (notificationPermission !== 'granted') {
       return;
     }
 
-    if (Notification.permission !== "granted") {
-      // ما نطلب الإذن هنا، بس نطلع لو permission مو granted
-      console.log("Notification permission is not granted yet, skip auto notifications");
-      return;
-    }
+    const showNotification = (task: Task) => {
+        new Notification(`تذكير بمهمة: ${task.text}`, {
+          body: `هذه المهمة ستنتهي خلال 5 دقائق.`,
+          icon: '/favicon.ico',
+        });
+        audioRef.current?.play();
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, notificationSent: true } : t));
+    };
 
-    const fiveMinutes = 5 * 60 * 1000;
-
-    setTasks(prev =>
-      prev.map(task => {
-        if (
-          task.dueDate &&
-          !task.completed &&
-          !task.notificationSent
-        ) {
-          const dueTime = new Date(task.dueDate).getTime();
-          const timeDiff = dueTime - currentTime.getTime();
-
-          if (timeDiff > 0 && timeDiff <= fiveMinutes) {
-            // نرسل إشعار فعلي
-            try {
-              new Notification(`تذكير بمهمة: ${task.text}`, {
-                body: `هذه المهمة ستنتهي خلال 5 دقائق.`,
-                icon: '/favicon.ico',
-              });
-              audioRef.current?.play();
-              return { ...task, notificationSent: true };
-            } catch (e) {
-              console.error("Failed to show notification", e);
-            }
-          }
+    tasks.forEach(task => {
+      if (task.dueDate && !task.completed && !task.notificationSent) {
+        const dueTime = new Date(task.dueDate).getTime();
+        const timeDiff = dueTime - currentTime.getTime();
+        const fiveMinutes = 5 * 60 * 1000;
+        if (timeDiff > 0 && timeDiff <= fiveMinutes) {
+          showNotification(task);
         }
-        return task;
-      })
-    );
-  }, [currentTime]); // تعتمد على الوقت فقط، ونستخدم setTasks داخلياً
+      }
+    });
+  }, [currentTime, tasks, notificationPermission]);
 
-  // auto hide in-app notification banner
+
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => {
         setNotification(null);
-      }, 4000);
+      }, 4000); // Auto-dismiss after 4 seconds
       return () => clearTimeout(timer);
     }
   }, [notification]);
+
+  const handleRequestPermission = () => {
+    if (!('Notification' in window)) {
+        setNotification('متصفحك لا يدعم الإشعارات.');
+        return;
+    }
+    Notification.requestPermission(status => {
+        setNotificationPermission(status);
+        if (status === 'granted') {
+            setNotification('تم تفعيل الإشعارات بنجاح!');
+        } else {
+            setNotification('تم رفض إذن الإشعارات. يمكنك تفعيلها من إعدادات المتصفح.');
+        }
+    });
+  };
+
+  const handleStartNewDay = () => {
+    if (window.confirm('هل أنت متأكد أنك تريد بدء يوم جديد؟ سيتم حذف جميع المهام الحالية والمتأخرة.')) {
+      setTasks([]);
+      setNotification('تم بدء يوم جديد بنجاح!');
+    }
+  };
 
   const toggleTheme = () => {
     setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
@@ -136,48 +140,19 @@ const App: React.FC = () => {
     
     const commandText = trimmedText.toLowerCase();
 
-    // 🔔 أمر خاص لاختبار الإشعارات
     if (commandText === 'alarm') {
       setNotification('جاري اختبار الإشعار والصوت...');
-
       audioRef.current?.play();
-
-      if (!("Notification" in window)) {
-        setNotification('متصفحك لا يدعم الإشعارات.');
-        return;
-      }
-
-      const sendTest = () => {
-        try {
-          new Notification('تنبيه تجريبي!', {
-            body: 'هذا هو شكل الإشعار الذي سيصلك.',
-            icon: '/favicon.ico',
-          });
-        } catch (e) {
-          console.error("Failed to show test notification", e);
-        }
-      };
-
-      if (Notification.permission === "granted") {
-        sendTest();
+      
+      if (notificationPermission === 'granted') {
+          new Notification('تنبيه تجريبي!', { body: 'هذا هو شكل الإشعار الذي سيصلك.'});
+      } else if (notificationPermission === 'default') {
+          setNotification('الرجاء تفعيل الإشعارات باستخدام الشريط في الأعلى.');
       } else {
-        Notification.requestPermission()
-          .then(permission => {
-            if (permission === "granted") {
-              sendTest();
-            } else if (permission === "denied") {
-              setNotification('الإشعارات مرفوضة في متصفحك.');
-            } else {
-              setNotification('لم يتم تفعيل الإشعارات.');
-            }
-          })
-          .catch(err => {
-            console.error("Notification permission request failed", err);
-          });
+          setNotification('الإشعارات معطلة. يرجى تفعيلها من إعدادات المتصفح.');
       }
       return;
     }
-
     if (commandText === 'admin') {
       setIsAdmin(true);
       setNotification('وضع المسؤول مفعل!');
@@ -188,12 +163,10 @@ const App: React.FC = () => {
       setNotification('تم إلغاء تفعيل وضع المسؤول.');
       return;
     }
-
     if (tasks.some(task => task.text.trim().toLowerCase() === trimmedText.toLowerCase())) {
       setNotification('هذه المهمة موجودة بالفعل!');
       return;
     }
-
     const newTask: Task = {
       id: crypto.randomUUID(),
       text: trimmedText,
@@ -230,20 +203,17 @@ const App: React.FC = () => {
   const { todayTasks, overdueTasks } = useMemo(() => {
     const todayTasksList: Task[] = [];
     const overdueTasksList: Task[] = [];
-
     sortedTasks.forEach(task => {
       const isOverdue = !task.completed && task.dueDate && new Date(task.dueDate) < currentTime;
       if (isOverdue) overdueTasksList.push(task);
       else todayTasksList.push(task);
     });
-
     const priorityOrder: { [key in TaskPriority]: number } = { high: 1, medium: 2, low: 3 };
     overdueTasksList.sort((a, b) => {
-      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+       const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
       if (priorityDiff !== 0) return priorityDiff;
       return new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
     });
-
     return { todayTasks: todayTasksList, overdueTasks: overdueTasksList };
   }, [sortedTasks, currentTime]);
 
@@ -261,11 +231,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <audio
-        ref={audioRef}
-        src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"
-        preload="auto"
-      />
+       <audio ref={audioRef} src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" preload="auto" />
       <Header 
         theme={theme} 
         onToggleTheme={toggleTheme} 
@@ -280,7 +246,10 @@ const App: React.FC = () => {
         currentView={currentView}
       />
       
-      <Notification message={notification} onClose={() => setNotification(null)} />
+      {notificationPermission === 'default' && <NotificationPermissionBanner onRequestPermission={handleRequestPermission} />}
+      
+      {/* FIX: Renamed `Notification` to `NotificationComponent` to avoid conflict with the browser's Notification API. */}
+      <NotificationComponent message={notification} onClose={() => setNotification(null)} />
       
       <main className="flex-grow p-4 md:p-6 pb-28">
         <div className="max-w-3xl mx-auto">
@@ -288,6 +257,15 @@ const App: React.FC = () => {
             <>
               <ProductivityTracker percentage={productivityPercentage} theme={theme} />
               
+              <div className="mt-6 flex justify-center">
+                  <button
+                    onClick={handleStartNewDay}
+                    className="bg-red-600 text-white dark:bg-red-700 dark:hover:bg-red-600 font-bold px-6 py-2 rounded-lg hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-100 dark:focus:ring-offset-zinc-950 focus:ring-red-500 transition-all transform hover:scale-105"
+                  >
+                    بدء يوم جديد
+                  </button>
+              </div>
+
               {overdueTasks.length > 0 && (
                 <TaskList
                   title="مهام متأخرة"
@@ -308,7 +286,7 @@ const App: React.FC = () => {
               />
 
               <footer className="text-center p-4 text-xs text-zinc-500 dark:text-zinc-600 mt-8">
-                مشروع مادة مهارة الدراسة © {new Date().getFullYear()}
+                حقوق الطبع محفوظة لمشروع مادة مهارات الدراسة © {new Date().getFullYear()}
               </footer>
             </>
           ) : (
