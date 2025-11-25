@@ -59,11 +59,12 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    const root = document.documentElement;
+    const isDark = theme === 'dark';
+
+    root.classList.toggle('dark', isDark);
+    root.style.colorScheme = isDark ? 'dark' : 'light';
+
     localStorage.setItem('theme', theme);
   }, [theme]);
 
