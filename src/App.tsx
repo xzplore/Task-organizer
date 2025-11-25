@@ -58,15 +58,16 @@ const App: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    const isDark = theme === 'dark';
+useEffect(() => {
+  const root = document.documentElement;
+  const isDark = theme === 'dark';
 
-    root.classList.toggle('dark', isDark);
-    root.style.colorScheme = isDark ? 'dark' : 'light';
+  root.classList.toggle('dark', isDark);
+  root.style.colorScheme = isDark ? 'dark' : 'light';
 
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+  localStorage.setItem('theme', theme);
+}, [theme]);
+
 
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
