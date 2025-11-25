@@ -41,6 +41,16 @@ const App: React.FC = () => {
   const [notificationPermission, setNotificationPermission] = useState('default');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Register Service Worker for PWA functionality
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      // FIX: Changed path to relative to fix cross-origin registration error.
+      navigator.serviceWorker.register('./service-worker.js').catch(err => {
+        console.error('Service worker registration failed:', err);
+      });
+    }
+  }, []);
+
   // This effect runs once on mount to check notification permission
   useEffect(() => {
     if ('Notification' in window) {
@@ -59,10 +69,13 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const root = document.documentElement;
     if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
+      root.style.colorScheme = 'dark';
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
+      root.style.colorScheme = 'light';
     }
     localStorage.setItem('theme', theme);
   }, [theme]);
@@ -71,17 +84,36 @@ const App: React.FC = () => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
+  const showNotification = async (title: string, options: NotificationOptions) => {
+    if (notificationPermission !== 'granted' || !('serviceWorker' in navigator)) {
+        // Fallback for non-PWA environments, might not work on mobile
+        new Notification(title, options);
+        return;
+    }
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification(title, options);
+    } catch (error) {
+        console.error('Error showing notification via service worker:', error);
+    }
+  };
+
+
   // Effect to check for and send notifications for upcoming tasks
   useEffect(() => {
     if (notificationPermission !== 'granted') {
       return;
     }
 
-    const showNotification = (task: Task) => {
-        new Notification(`تذكير بمهمة: ${task.text}`, {
+    const triggerNotification = (task: Task) => {
+        // FIX: Cast notification options to `any` to allow the `vibrate` property,
+        // which might not be in the default TS DOM library definition.
+        showNotification(`تذكير بمهمة: ${task.text}`, {
           body: `هذه المهمة ستنتهي خلال 5 دقائق.`,
-          icon: '/favicon.ico',
-        });
+          icon: '/icons/icon-192x192.png',
+          vibrate: [200, 100, 200], // Vibrate for mobile
+          requireInteraction: true, // Keep notification until user interacts
+        } as any);
         audioRef.current?.play();
         setTasks(prev => prev.map(t => t.id === task.id ? { ...t, notificationSent: true } : t));
     };
@@ -92,7 +124,7 @@ const App: React.FC = () => {
         const timeDiff = dueTime - currentTime.getTime();
         const fiveMinutes = 5 * 60 * 1000;
         if (timeDiff > 0 && timeDiff <= fiveMinutes) {
-          showNotification(task);
+          triggerNotification(task);
         }
       }
     });
@@ -145,7 +177,12 @@ const App: React.FC = () => {
       audioRef.current?.play();
       
       if (notificationPermission === 'granted') {
-          new Notification('تنبيه تجريبي!', { body: 'هذا هو شكل الإشعار الذي سيصلك.'});
+          // FIX: Cast notification options to `any` to allow the `vibrate` property,
+          // which might not be in the default TS DOM library definition.
+          showNotification('تنبيه تجريبي!', { 
+              body: 'هذا هو شكل الإشعار الذي سيصلك.',
+              vibrate: [200, 100, 200],
+          } as any);
       } else if (notificationPermission === 'default') {
           setNotification('الرجاء تفعيل الإشعارات باستخدام الشريط في الأعلى.');
       } else {
