@@ -12,8 +12,8 @@
       rel="stylesheet"
     />
 
-    <!-- تفعيل الثيم (فاتح/داكن) قبل تحميل Tailwind -->
     <script>
+      // تهيئة الثيم و Tailwind قبل تحميل السكربت الرئيسي
       (() => {
         const theme = localStorage.getItem("theme");
         if (
@@ -25,18 +25,18 @@
         } else {
           document.documentElement.classList.remove("dark");
         }
+
+        // إعداد Tailwind لاستخدام dark mode عن طريق class
+        window.tailwind = {
+          config: {
+            darkMode: "class",
+          },
+        };
       })();
     </script>
 
     <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- إعداد Tailwind لاستخدام dark mode عن طريق class -->
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-      };
-    </script>
 
     <style>
       body {
@@ -62,7 +62,7 @@
   >
     <div id="root"></div>
 
-    <!-- دخلة Vite (بدل /index.tsx) -->
+    <!-- Vite entry (مهم يكون من src/main.tsx) -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
