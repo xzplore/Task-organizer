@@ -4,15 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>منظم المهام</title>
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json" />
-
-    <!-- PWA Meta Tags for iOS -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="منظم المهام">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,24 +11,23 @@
       href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap"
       rel="stylesheet"
     >
-    
+
     <script>
-      // تهيئة الثيم وضبط Tailwind قبل التحميل لتفادي FOUC
+      // تهيئة الثيم قبل تحميل Tailwind
       (() => {
         const theme = localStorage.getItem('theme');
-        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        if (
+          theme === 'dark' ||
+          (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        ) {
           document.documentElement.classList.add('dark');
-          document.documentElement.style.colorScheme = 'dark';
         } else {
           document.documentElement.classList.remove('dark');
-          document.documentElement.style.colorScheme = 'light';
         }
 
-        // إعداد Tailwind لاستخدام dark mode عن طريق class
+        // إعداد Tailwind
         window.tailwind = {
-          config: {
-            darkMode: 'class',
-          },
+          config: { darkMode: 'class' }
         };
       })();
     </script>
@@ -50,14 +40,8 @@
         font-family: 'Cairo', sans-serif;
       }
       @keyframes fade-in-down {
-        from {
-          opacity: 0;
-          transform: translate(-50%, -20px);
-        }
-        to {
-          opacity: 1;
-          transform: translate(-50%, 0);
-        }
+        from { opacity: 0; transform: translate(-50%, -20px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
       }
       .animate-fade-in-down {
         animation: fade-in-down 0.3s ease-out forwards;
@@ -65,10 +49,12 @@
     </style>
   </head>
 
-  <body class="bg-zinc-100 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-200 transition-colors duration-300">
+  <body
+    class="bg-zinc-100 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-200 transition-colors duration-300"
+  >
     <div id="root"></div>
 
-    <!-- Vite entry (مهم يكون من src/main.tsx) -->
+    <!-- Entry file الصحيح لمشاريع Vite -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
