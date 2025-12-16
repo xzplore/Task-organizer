@@ -9,7 +9,7 @@ import NavigationMenu from './components/NavigationMenu';
 import PomodoroTimer from './components/PomodoroTimer';
 import NotificationPermissionBanner from './components/NotificationPermissionBanner';
 import Leaderboard, { LeaderboardEntry } from './components/Leaderboard';
-import { supabase } from "./supabaseClient";
+import { supabase } from './supabaseClient';
 
 type View = 'tasks' | 'pomodoro' | 'leaderboard';
 
@@ -33,58 +33,62 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  useEffect(() => {
-  const test = async () => {
-    const { data, error } = await supabase
-      .from("leaderboard")
-      .select("*");
-
-    console.log("SUPABASE TEST", data, error);
-  };
-
-  test();
-}, []);
-
-
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
   const [notification, setNotification] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<View>('tasks');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const [selectedName, setSelectedName] = useState(() => localStorage.getItem('selectedName') || '');
+  // Leaderboard (Supabase)
+  const [selectedName, setSelectedName] = useState('');
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(() => {
-    try {
-      const raw = localStorage.getItem('leaderboard');
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
+  const loadLeaderboard = async () => {
+    const { data, error } = await supabase
+      .from('leaderboard')
+      .select('name, minutes, updated_at')
+      .order('minutes', { ascending: false });
+
+    if (error) {
+      setNotification('Supabase error: ' + error.message);
+      return;
     }
-  });
+
+    setLeaderboard(
+      (data || []).map(r => ({
+        name: r.name,
+        minutes: r.minutes,
+        updatedAt: new Date(r.updated_at).getTime(),
+      }))
+    );
+  };
 
   useEffect(() => {
-    localStorage.setItem('selectedName', selectedName);
-  }, [selectedName]);
+    loadLeaderboard();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
-  }, [leaderboard]);
-
-  const ensureNameExists = (name: string) => {
+  const ensureNameExists = async (name: string) => {
     const n = name.trim();
     if (!n) return;
 
-    setLeaderboard(prev => {
-      const exists = prev.some(e => e.name === n);
-      if (exists) return prev;
-      return [...prev, { name: n, minutes: 0, updatedAt: Date.now() }];
-    });
-
     setSelectedName(n);
+
+    const { error } = await supabase
+      .from('leaderboard')
+      .upsert(
+        { name: n, minutes: 0, updated_at: new Date().toISOString() },
+        { onConflict: 'name' }
+      );
+
+    if (error) {
+      setNotification('Supabase error: ' + error.message);
+      return;
+    }
+
+    loadLeaderboard();
   };
 
-  const addFocusMinutesForSelectedUser = (minutesToAdd: number) => {
+  const addFocusMinutesForSelectedUser = async (minutesToAdd: number) => {
     const name = selectedName.trim();
     if (!name) {
       setNotification('اختر اسمك من لوحة الصدارة');
@@ -93,33 +97,38 @@ const App: React.FC = () => {
       return;
     }
 
-    setLeaderboard(prev => {
-      const now = Date.now();
-      const next = [...prev];
-      const idx = next.findIndex(e => e.name === name);
+    const safeAdd = Math.max(0, minutesToAdd);
 
-      if (idx === -1) {
-        next.push({ name, minutes: Math.max(0, minutesToAdd), updatedAt: now });
-        return next;
-      }
+    const { data: existing, error: readErr } = await supabase
+      .from('leaderboard')
+      .select('minutes')
+      .eq('name', name)
+      .maybeSingle();
 
-      next[idx] = {
-        ...next[idx],
-        minutes: next[idx].minutes + Math.max(0, minutesToAdd),
-        updatedAt: now,
-      };
-      return next;
-    });
+    if (readErr) {
+      setNotification('Supabase error: ' + readErr.message);
+      return;
+    }
+
+    const current = existing?.minutes ?? 0;
+    const nextMinutes = current + safeAdd;
+
+    const { error: upErr } = await supabase
+      .from('leaderboard')
+      .upsert(
+        { name, minutes: nextMinutes, updated_at: new Date().toISOString() },
+        { onConflict: 'name' }
+      );
+
+    if (upErr) {
+      setNotification('Supabase error: ' + upErr.message);
+      return;
+    }
+
+    loadLeaderboard();
   };
 
-  const resetLeaderboard = () => {
-    setLeaderboard([]);
-    setSelectedName('');
-    localStorage.removeItem('leaderboard');
-    localStorage.removeItem('selectedName');
-    setNotification('تم تصفير لوحة الصدارة');
-  };
-
+  // Tasks (localStorage stays)
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
       const savedTasks = localStorage.getItem('tasks');
@@ -132,7 +141,8 @@ const App: React.FC = () => {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAdmin, setIsAdmin] = useState(false);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [notificationPermission, setNotificationPermission] =
+    useState<NotificationPermission>('default');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -362,25 +372,24 @@ const App: React.FC = () => {
             </>
           )}
 
-{currentView === 'pomodoro' && (
-  <PomodoroTimer
-    theme={theme}
-    onWorkSessionComplete={(mins: number) => {
-      console.log("WORK SESSION COMPLETE", mins);
-      addFocusMinutesForSelectedUser(mins);
-    }}
-  />
-)}
+          {currentView === 'pomodoro' && (
+            <PomodoroTimer
+              theme={theme}
+              onWorkSessionComplete={(mins: number) => {
+                console.log('WORK SESSION COMPLETE', mins);
+                addFocusMinutesForSelectedUser(mins);
+              }}
+            />
+          )}
 
-
-          {currentView === "leaderboard" && (
-              <Leaderboard
-                entries={leaderboard}
-                selectedName={selectedName}
-                onSelectName={setSelectedName}
-                onAddName={ensureNameExists}
-                />
-            )}
+          {currentView === 'leaderboard' && (
+            <Leaderboard
+              entries={leaderboard}
+              selectedName={selectedName}
+              onSelectName={setSelectedName}
+              onAddName={ensureNameExists}
+            />
+          )}
         </div>
       </main>
 
