@@ -33,6 +33,19 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+  const test = async () => {
+    const { data, error } = await supabase
+      .from("leaderboard")
+      .select("*");
+
+    console.log("SUPABASE TEST", data, error);
+  };
+
+  test();
+}, []);
+
+
   const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
   const [notification, setNotification] = useState<string | null>(null);
