@@ -88,7 +88,10 @@ const Leaderboard: React.FC<Props> = ({
                 onClick={() => {
                   const n = newName.trim();
                   if (!n) return;
+
                   onAddName(n);
+                  onSelectName(n);
+
                   setNewName("");
                 }}
                 className="rounded-xl px-4 bg-cyan-600 text-white hover:bg-cyan-500"
@@ -121,7 +124,10 @@ const Leaderboard: React.FC<Props> = ({
                 <div className="w-8 text-center font-bold text-zinc-700 dark:text-zinc-200">
                   {idx + 1}
                 </div>
-                <div className="font-semibold text-zinc-800 dark:text-zinc-100" dir="rtl">
+                <div
+                  className="font-semibold text-zinc-800 dark:text-zinc-100"
+                  dir="rtl"
+                >
                   {e.name}
                 </div>
               </div>
