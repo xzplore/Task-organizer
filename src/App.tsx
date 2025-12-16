@@ -9,6 +9,7 @@ import NavigationMenu from './components/NavigationMenu';
 import PomodoroTimer from './components/PomodoroTimer';
 import NotificationPermissionBanner from './components/NotificationPermissionBanner';
 import Leaderboard, { LeaderboardEntry } from './components/Leaderboard';
+import { supabase } from "./supabaseClient";
 
 type View = 'tasks' | 'pomodoro' | 'leaderboard';
 
