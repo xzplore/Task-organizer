@@ -19,7 +19,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({
 
   const [studentsOpen, setStudentsOpen] = useState(false);
 
-  const students = ['البراء', 'محمد', 'شهاب', 'خلفان'];
+  const students = ['البراء بن سالم بن سعيد البوسعيدي', 'محمد بن خالد بن خلفان الغاوي', 'شهاب بن خالد بن محمد القليبي', 'خميس عبدالله خميس الجهوري'];
 
   const linkStyles =
     'flex items-center gap-4 p-4 text-lg font-semibold rounded-lg transition-colors';
