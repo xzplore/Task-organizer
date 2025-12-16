@@ -8,8 +8,10 @@ import Header from './components/Header';
 import NavigationMenu from './components/NavigationMenu';
 import PomodoroTimer from './components/PomodoroTimer';
 import NotificationPermissionBanner from './components/NotificationPermissionBanner';
+import Leaderboard, { LeaderboardEntry } from "./components/Leaderboard";
 
-type View = 'tasks' | 'pomodoro';
+
+type View = "tasks" | "pomodoro" | "leaderboard";
 
 const App: React.FC = () => {
   // ---------------------- Theme ----------------------
@@ -36,6 +38,80 @@ const App: React.FC = () => {
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
+
+
+  const [selectedName, setSelectedName] = useState(() => {
+  return localStorage.getItem("selectedName") || "";
+  });
+
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(() => {
+  try {
+    const raw = localStorage.getItem("leaderboard");
+      return raw ? JSON.parse(raw) : [];
+  } catch {
+  return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("selectedName", selectedName);
+  }, [selectedName]);
+
+  useEffect(() => {
+    localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+  }, [leaderboard]);
+
+  const ensureNameExists = (name: string) => {
+  const n = name.trim();
+  if (!n) return;
+
+  setLeaderboard(prev => {
+    const exists = prev.some(e => e.name === n);
+    if (exists) return prev;
+    return [...prev, { name: n, minutes: 0, updatedAt: Date.now() }];
+  });
+
+  setSelectedName(n);
+};
+
+const addFocusMinutesForSelectedUser = (minutesToAdd: number) => {
+  const name = selectedName.trim();
+  if (!name) {
+    setNotification("اختر اسمك من Leaderboard");
+    setCurrentView("leaderboard");
+    setIsMenuOpen(false);
+    return;
+  }
+
+  setLeaderboard(prev => {
+    const now = Date.now();
+    const next = [...prev];
+    const idx = next.findIndex(e => e.name === name);
+
+    if (idx === -1) {
+      next.push({ name, minutes: Math.max(0, minutesToAdd), updatedAt: now });
+      return next;
+    }
+
+    next[idx] = {
+      ...next[idx],
+      minutes: next[idx].minutes + Math.max(0, minutesToAdd),
+      updatedAt: now,
+    };
+    return next;
+  });
+};
+
+const resetLeaderboard = () => {
+  setLeaderboard([]);
+  setSelectedName("");
+  localStorage.removeItem("leaderboard");
+  localStorage.removeItem("selectedName");
+  setNotification("تم تصفير لوحة الصدارة");
+};
+
+
+
 
   // ---------------------- Tasks ----------------------
   const [tasks, setTasks] = useState<Task[]>(() => {
@@ -345,7 +421,7 @@ const App: React.FC = () => {
               </footer>
             </>
           ) : (
-            <PomodoroTimer theme={theme} />
+            <PomodoroTimer   theme={theme}   onFocusSessionComplete={(focusMinutes: number) => {     addFocusMinutesForSelectedUser(focusMinutes);   }} />
           )}
         </div>
       </main>
