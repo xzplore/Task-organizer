@@ -348,14 +348,16 @@ const App: React.FC = () => {
             </>
           )}
 
-          {currentView === 'pomodoro' && (
-            <PomodoroTimer
-              theme={theme}
-              onWorkSessionComplete={(mins: number) => {
-                addFocusMinutesForSelectedUser(mins);
-              }}
-            />
-          )}
+{currentView === 'pomodoro' && (
+  <PomodoroTimer
+    theme={theme}
+    onWorkSessionComplete={(mins: number) => {
+      console.log("WORK SESSION COMPLETE", mins);
+      addFocusMinutesForSelectedUser(mins);
+    }}
+  />
+)}
+
 
           {currentView === "leaderboard" && (
               <Leaderboard
