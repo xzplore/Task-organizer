@@ -12,18 +12,24 @@ import NotificationPermissionBanner from './components/NotificationPermissionBan
 type View = 'tasks' | 'pomodoro';
 
 const App: React.FC = () => {
+  // ---------------------- Theme ----------------------
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
     return 'light';
   });
 
+  // هذا الإيفكت هو المسؤول الوحيد عن إضافة/إزالة كلاس dark
   useEffect(() => {
     const root = document.documentElement;
     const isDark = theme === 'dark';
+
     root.classList.toggle('dark', isDark);
     root.style.colorScheme = isDark ? 'dark' : 'light';
+
     localStorage.setItem('theme', theme);
   }, [theme]);
 
@@ -31,11 +37,13 @@ const App: React.FC = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  // ---------------------- Tasks ----------------------
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
       const savedTasks = localStorage.getItem('tasks');
       return savedTasks ? JSON.parse(savedTasks) : [];
-    } catch {
+    } catch (error) {
+      console.error('Could not parse tasks from localStorage', error);
       return [];
     }
   });
@@ -49,94 +57,211 @@ const App: React.FC = () => {
     useState<NotificationPermission>('default');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // الوقت يتحدث كل دقيقة
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60_000);
     return () => clearInterval(timer);
   }, []);
 
+  // حفظ المهام في localStorage
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
+  // معرفة حالة الإشعارات
   useEffect(() => {
-    if ('Notification' in window) setNotificationPermission(Notification.permission);
-    else setNotificationPermission('denied');
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    } else {
+      console.log('This browser does not support desktop notification');
+      setNotificationPermission('denied');
+    }
   }, []);
 
+  // إشعار عند اقتراب موعد المهمة (5 دقائق)
   useEffect(() => {
     if (notificationPermission !== 'granted') return;
 
+    const showNotification = (task: Task) => {
+      new Notification(`تذكير بمهمة: ${task.text}`, {
+        body: 'هذه المهمة ستنتهي خلال 5 دقائق.',
+        icon: '/favicon.ico',
+      });
+      audioRef.current?.play();
+      setTasks(prev =>
+        prev.map(t =>
+          t.id === task.id ? { ...t, notificationSent: true } : t
+        )
+      );
+    };
+
     tasks.forEach(task => {
       if (task.dueDate && !task.completed && !task.notificationSent) {
-        const diff = new Date(task.dueDate).getTime() - currentTime.getTime();
-        if (diff > 0 && diff <= 300000) {
-          new Notification(`تذكير بمهمة: ${task.text}`);
-          audioRef.current?.play();
-          setTasks(prev =>
-            prev.map(t =>
-              t.id === task.id ? { ...t, notificationSent: true } : t
-            )
-          );
+        const dueTime = new Date(task.dueDate).getTime();
+        const diff = dueTime - currentTime.getTime();
+        const fiveMinutes = 5 * 60 * 1000;
+        if (diff > 0 && diff <= fiveMinutes) {
+          showNotification(task);
         }
       }
     });
   }, [currentTime, tasks, notificationPermission]);
 
+  // إخفاء رسالة التنبيه بعد ٤ ثواني
   useEffect(() => {
     if (!notification) return;
-    const t = setTimeout(() => setNotification(null), 4000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setNotification(null), 4000);
+    return () => clearTimeout(timer);
   }, [notification]);
 
+  // طلب إذن الإشعارات
   const handleRequestPermission = () => {
-    Notification.requestPermission().then(setNotificationPermission);
+    if (!('Notification' in window)) {
+      setNotification('متصفحك لا يدعم الإشعارات.');
+      return;
+    }
+
+    Notification.requestPermission().then(status => {
+      setNotificationPermission(status);
+      if (status === 'granted') {
+        setNotification('تم تفعيل الإشعارات بنجاح!');
+      } else {
+        setNotification('تم رفض إذن الإشعارات. يمكنك تفعيلها من إعدادات المتصفح.');
+      }
+    });
   };
 
   const handleStartNewDay = () => {
-    if (window.confirm('هل أنت متأكد؟')) {
+    if (
+      window.confirm(
+        'هل أنت متأكد أنك تريد بدء يوم جديد؟ سيتم حذف جميع المهام الحالية والمتأخرة.'
+      )
+    ) {
       setTasks([]);
-      setNotification('تم بدء يوم جديد');
+      setNotification('تم بدء يوم جديد بنجاح!');
     }
   };
 
   const addTask = (text: string, priority: TaskPriority, dueDate?: string) => {
-    if (!text.trim()) return;
+    const trimmedText = text.trim();
+    if (!trimmedText) return;
 
-    if (text === 'admin') {
-      setIsAdmin(true);
+    const commandText = trimmedText.toLowerCase();
+
+    if (commandText === 'alarm') {
+      setNotification('جاري اختبار الإشعار والصوت...');
+      audioRef.current?.play();
+
+      if (notificationPermission === 'granted') {
+        new Notification('تنبيه تجريبي!', {
+          body: 'هذا هو شكل الإشعار الذي سيصلك.',
+        });
+      } else if (notificationPermission === 'default') {
+        setNotification('الرجاء تفعيل الإشعارات باستخدام الشريط في الأعلى.');
+      } else {
+        setNotification('الإشعارات معطلة. يرجى تفعيلها من إعدادات المتصفح.');
+      }
       return;
     }
 
-    setTasks(prev => [
-      {
-        id: crypto.randomUUID(),
-        text,
-        completed: false,
-        createdAt: Date.now(),
-        priority,
-        dueDate,
-        notificationSent: false,
-      },
-      ...prev,
-    ]);
+    if (commandText === 'admin') {
+      setIsAdmin(true);
+      setNotification('وضع المسؤول مفعل!');
+      return;
+    }
+
+    if (commandText === 'unadmin') {
+      setIsAdmin(false);
+      setNotification('تم إلغاء تفعيل وضع المسؤول.');
+      return;
+    }
+
+    if (
+      tasks.some(
+        task =>
+          task.text.trim().toLowerCase() === trimmedText.toLowerCase()
+      )
+    ) {
+      setNotification('هذه المهمة موجودة بالفعل!');
+      return;
+    }
+
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      text: trimmedText,
+      completed: false,
+      createdAt: Date.now(),
+      priority,
+      dueDate: dueDate || undefined,
+      notificationSent: false,
+    };
+
+    setTasks(prev => [newTask, ...prev]);
   };
 
   const toggleTask = (id: string) => {
     setTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
+      prev.map(task =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
     );
   };
 
   const deleteTask = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
+    setTasks(prev => prev.filter(task => task.id !== id));
   };
 
   const sortedTasks = useMemo(() => {
-    const order = { high: 1, medium: 2, low: 3 };
-    return [...tasks].sort(
-      (a, b) => order[a.priority] - order[b.priority]
-    );
+    const priorityOrder: Record<TaskPriority, number> = {
+      high: 1,
+      medium: 2,
+      low: 3,
+    };
+
+    return [...tasks].sort((a, b) => {
+      const diff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      if (diff !== 0) return diff;
+      return b.createdAt - a.createdAt;
+    });
   }, [tasks]);
+
+  const { todayTasks, overdueTasks } = useMemo(() => {
+    const today: Task[] = [];
+    const overdue: Task[] = [];
+
+    sortedTasks.forEach(task => {
+      const isOverdue =
+        !task.completed &&
+        task.dueDate &&
+        new Date(task.dueDate) < currentTime;
+
+      if (isOverdue) overdue.push(task);
+      else today.push(task);
+    });
+
+    const priorityOrder: Record<TaskPriority, number> = {
+      high: 1,
+      medium: 2,
+      low: 3,
+    };
+
+    overdue.sort((a, b) => {
+      const diff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      if (diff !== 0) return diff;
+      return new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
+    });
+
+    return { todayTasks: today, overdueTasks: overdue };
+  }, [sortedTasks, currentTime]);
+
+  const productivityPercentage = useMemo(() => {
+    const allTasks = [...todayTasks, ...overdueTasks];
+    if (allTasks.length === 0) return 100;
+    const completed = todayTasks.filter(t => t.completed).length;
+    return Math.round((completed / allTasks.length) * 100);
+  }, [todayTasks, overdueTasks]);
 
   const handleNavigate = (view: View) => {
     setCurrentView(view);
@@ -145,7 +270,11 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <audio ref={audioRef} src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" />
+      <audio
+        ref={audioRef}
+        src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"
+        preload="auto"
+      />
 
       <Header
         theme={theme}
@@ -163,27 +292,62 @@ const App: React.FC = () => {
       />
 
       {notificationPermission === 'default' && (
-        <NotificationPermissionBanner onRequestPermission={handleRequestPermission} />
+        <NotificationPermissionBanner
+          onRequestPermission={handleRequestPermission}
+        />
       )}
 
-      <NotificationComponent message={notification} onClose={() => setNotification(null)} />
+      <NotificationComponent
+        message={notification}
+        onClose={() => setNotification(null)}
+      />
 
-      <main className="flex-grow p-4">
-        {currentView === 'tasks' ? (
-          <>
-            <ProductivityTracker percentage={100} theme={theme} />
-            <TaskList
-              title="المهام"
-              tasks={sortedTasks}
-              onToggle={toggleTask}
-              onDelete={deleteTask}
-              isAdmin={isAdmin}
-            />
-            <button onClick={handleStartNewDay}>بدء يوم جديد</button>
-          </>
-        ) : (
-          <PomodoroTimer theme={theme} />
-        )}
+      <main className="flex-grow p-4 md:p-6 pb-28">
+        <div className="max-w-3xl mx-auto">
+          {currentView === 'tasks' ? (
+            <>
+              <ProductivityTracker
+                percentage={productivityPercentage}
+                theme={theme}
+              />
+
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={handleStartNewDay}
+                  className="bg-red-600 text-white dark:bg-red-700 dark:hover:bg-red-600 font-bold px-6 py-2 rounded-lg hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-100 dark:focus:ring-offset-zinc-950 focus:ring-red-500 transition-all transform hover:scale-105"
+                >
+                  بدء يوم جديد
+                </button>
+              </div>
+
+              {overdueTasks.length > 0 && (
+                <TaskList
+                  title="مهام متأخرة"
+                  tasks={overdueTasks}
+                  onToggle={toggleTask}
+                  onDelete={deleteTask}
+                  isOverdue={true}
+                  isAdmin={isAdmin}
+                />
+              )}
+
+              <TaskList
+                title="المهام القادمة"
+                tasks={todayTasks}
+                onToggle={toggleTask}
+                onDelete={deleteTask}
+                isAdmin={isAdmin}
+              />
+
+              <footer className="text-center p-4 text-xs text-zinc-500 dark:text-zinc-600 mt-8">
+                حقوق الطبع محفوظة لمشروع مادة مهارات الدراسة ©{' '}
+                {new Date().getFullYear()}
+              </footer>
+            </>
+          ) : (
+            <PomodoroTimer theme={theme} />
+          )}
+        </div>
       </main>
 
       {currentView === 'tasks' && <TaskInput onAddTask={addTask} />}
