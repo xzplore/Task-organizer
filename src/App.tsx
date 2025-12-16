@@ -357,15 +357,14 @@ const App: React.FC = () => {
             />
           )}
 
-          {currentView === 'leaderboard' && (
-            <Leaderboard
-              entries={leaderboard}
-              selectedName={selectedName}
-              onSelectName={setSelectedName}
-              onAddName={ensureNameExists}
-              onReset={resetLeaderboard}
-            />
-          )}
+          {currentView === "leaderboard" && (
+              <Leaderboard
+                entries={leaderboard}
+                selectedName={selectedName}
+                onSelectName={setSelectedName}
+                onAddName={ensureNameExists}
+                />
+            )}
         </div>
       </main>
 
