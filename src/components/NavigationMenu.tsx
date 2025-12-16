@@ -75,7 +75,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({
             onClick={() => setStudentsOpen(v => !v)}
             className={`${linkStyles} ${inactiveLinkStyles}`}
           >
-            الطلاب
+            طلاب المشروع
           </button>
 
           {studentsOpen && (
