@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-type View = 'tasks' | 'pomodoro';
+type View = "tasks" | "pomodoro" | "leaderboard";
 
 interface NavigationMenuProps {
   isOpen: boolean;
@@ -70,6 +70,16 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({
           >
             تقنية بومودورو
           </button>
+
+          <button
+  onClick={() => onNavigate("leaderboard")}
+  className={`${linkStyles} ${
+    currentView === "leaderboard" ? activeLinkStyles : inactiveLinkStyles
+  }`}
+>
+  لوحة الصدارة
+</button>
+
 
           <button
             onClick={() => setStudentsOpen(v => !v)}
