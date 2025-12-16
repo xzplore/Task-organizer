@@ -8,13 +8,11 @@ import Header from './components/Header';
 import NavigationMenu from './components/NavigationMenu';
 import PomodoroTimer from './components/PomodoroTimer';
 import NotificationPermissionBanner from './components/NotificationPermissionBanner';
-import Leaderboard, { LeaderboardEntry } from "./components/Leaderboard";
+import Leaderboard, { LeaderboardEntry } from './components/Leaderboard';
 
-
-type View = "tasks" | "pomodoro" | "leaderboard";
+type View = 'tasks' | 'pomodoro' | 'leaderboard';
 
 const App: React.FC = () => {
-  // ---------------------- Theme ----------------------
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
@@ -24,7 +22,6 @@ const App: React.FC = () => {
     return 'light';
   });
 
-  // هذا الإيفكت هو المسؤول الوحيد عن إضافة/إزالة كلاس dark
   useEffect(() => {
     const root = document.documentElement;
     const isDark = theme === 'dark';
@@ -35,85 +32,80 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
-  };
+  const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
 
+  const [notification, setNotification] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<View>('tasks');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const [selectedName, setSelectedName] = useState(() => {
-  return localStorage.getItem("selectedName") || "";
-  });
+  const [selectedName, setSelectedName] = useState(() => localStorage.getItem('selectedName') || '');
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(() => {
-  try {
-    const raw = localStorage.getItem("leaderboard");
+    try {
+      const raw = localStorage.getItem('leaderboard');
       return raw ? JSON.parse(raw) : [];
-  } catch {
-  return [];
+    } catch {
+      return [];
     }
   });
 
   useEffect(() => {
-    localStorage.setItem("selectedName", selectedName);
+    localStorage.setItem('selectedName', selectedName);
   }, [selectedName]);
 
   useEffect(() => {
-    localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+    localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
   }, [leaderboard]);
 
   const ensureNameExists = (name: string) => {
-  const n = name.trim();
-  if (!n) return;
+    const n = name.trim();
+    if (!n) return;
 
-  setLeaderboard(prev => {
-    const exists = prev.some(e => e.name === n);
-    if (exists) return prev;
-    return [...prev, { name: n, minutes: 0, updatedAt: Date.now() }];
-  });
+    setLeaderboard(prev => {
+      const exists = prev.some(e => e.name === n);
+      if (exists) return prev;
+      return [...prev, { name: n, minutes: 0, updatedAt: Date.now() }];
+    });
 
-  setSelectedName(n);
-};
+    setSelectedName(n);
+  };
 
-const addFocusMinutesForSelectedUser = (minutesToAdd: number) => {
-  const name = selectedName.trim();
-  if (!name) {
-    setNotification("اختر اسمك من Leaderboard");
-    setCurrentView("leaderboard");
-    setIsMenuOpen(false);
-    return;
-  }
-
-  setLeaderboard(prev => {
-    const now = Date.now();
-    const next = [...prev];
-    const idx = next.findIndex(e => e.name === name);
-
-    if (idx === -1) {
-      next.push({ name, minutes: Math.max(0, minutesToAdd), updatedAt: now });
-      return next;
+  const addFocusMinutesForSelectedUser = (minutesToAdd: number) => {
+    const name = selectedName.trim();
+    if (!name) {
+      setNotification('اختر اسمك من لوحة الصدارة');
+      setCurrentView('leaderboard');
+      setIsMenuOpen(false);
+      return;
     }
 
-    next[idx] = {
-      ...next[idx],
-      minutes: next[idx].minutes + Math.max(0, minutesToAdd),
-      updatedAt: now,
-    };
-    return next;
-  });
-};
+    setLeaderboard(prev => {
+      const now = Date.now();
+      const next = [...prev];
+      const idx = next.findIndex(e => e.name === name);
 
-const resetLeaderboard = () => {
-  setLeaderboard([]);
-  setSelectedName("");
-  localStorage.removeItem("leaderboard");
-  localStorage.removeItem("selectedName");
-  setNotification("تم تصفير لوحة الصدارة");
-};
+      if (idx === -1) {
+        next.push({ name, minutes: Math.max(0, minutesToAdd), updatedAt: now });
+        return next;
+      }
 
+      next[idx] = {
+        ...next[idx],
+        minutes: next[idx].minutes + Math.max(0, minutesToAdd),
+        updatedAt: now,
+      };
+      return next;
+    });
+  };
 
+  const resetLeaderboard = () => {
+    setLeaderboard([]);
+    setSelectedName('');
+    localStorage.removeItem('leaderboard');
+    localStorage.removeItem('selectedName');
+    setNotification('تم تصفير لوحة الصدارة');
+  };
 
-
-  // ---------------------- Tasks ----------------------
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
       const savedTasks = localStorage.getItem('tasks');
@@ -124,39 +116,25 @@ const resetLeaderboard = () => {
     }
   });
 
-  const [notification, setNotification] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAdmin, setIsAdmin] = useState(false);
-  const [currentView, setCurrentView] = useState<View>('tasks');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [notificationPermission, setNotificationPermission] =
-    useState<NotificationPermission>('default');
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // الوقت يتحدث كل دقيقة
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60_000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
 
-  // حفظ المهام في localStorage
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
-  // معرفة حالة الإشعارات
   useEffect(() => {
-    if ('Notification' in window) {
-      setNotificationPermission(Notification.permission);
-    } else {
-      console.log('This browser does not support desktop notification');
-      setNotificationPermission('denied');
-    }
+    if ('Notification' in window) setNotificationPermission(Notification.permission);
+    else setNotificationPermission('denied');
   }, []);
 
-  // إشعار عند اقتراب موعد المهمة (5 دقائق)
   useEffect(() => {
     if (notificationPermission !== 'granted') return;
 
@@ -166,11 +144,7 @@ const resetLeaderboard = () => {
         icon: '/favicon.ico',
       });
       audioRef.current?.play();
-      setTasks(prev =>
-        prev.map(t =>
-          t.id === task.id ? { ...t, notificationSent: true } : t
-        )
-      );
+      setTasks(prev => prev.map(t => (t.id === task.id ? { ...t, notificationSent: true } : t)));
     };
 
     tasks.forEach(task => {
@@ -178,21 +152,17 @@ const resetLeaderboard = () => {
         const dueTime = new Date(task.dueDate).getTime();
         const diff = dueTime - currentTime.getTime();
         const fiveMinutes = 5 * 60 * 1000;
-        if (diff > 0 && diff <= fiveMinutes) {
-          showNotification(task);
-        }
+        if (diff > 0 && diff <= fiveMinutes) showNotification(task);
       }
     });
   }, [currentTime, tasks, notificationPermission]);
 
-  // إخفاء رسالة التنبيه بعد ٤ ثواني
   useEffect(() => {
     if (!notification) return;
     const timer = setTimeout(() => setNotification(null), 4000);
     return () => clearTimeout(timer);
   }, [notification]);
 
-  // طلب إذن الإشعارات
   const handleRequestPermission = () => {
     if (!('Notification' in window)) {
       setNotification('متصفحك لا يدعم الإشعارات.');
@@ -201,20 +171,13 @@ const resetLeaderboard = () => {
 
     Notification.requestPermission().then(status => {
       setNotificationPermission(status);
-      if (status === 'granted') {
-        setNotification('تم تفعيل الإشعارات بنجاح!');
-      } else {
-        setNotification('تم رفض إذن الإشعارات. يمكنك تفعيلها من إعدادات المتصفح.');
-      }
+      if (status === 'granted') setNotification('تم تفعيل الإشعارات بنجاح!');
+      else setNotification('تم رفض إذن الإشعارات. يمكنك تفعيلها من إعدادات المتصفح.');
     });
   };
 
   const handleStartNewDay = () => {
-    if (
-      window.confirm(
-        'هل أنت متأكد أنك تريد بدء يوم جديد؟ سيتم حذف جميع المهام الحالية والمتأخرة.'
-      )
-    ) {
+    if (window.confirm('هل أنت متأكد أنك تريد بدء يوم جديد؟ سيتم حذف جميع المهام الحالية والمتأخرة.')) {
       setTasks([]);
       setNotification('تم بدء يوم جديد بنجاح!');
     }
@@ -231,9 +194,7 @@ const resetLeaderboard = () => {
       audioRef.current?.play();
 
       if (notificationPermission === 'granted') {
-        new Notification('تنبيه تجريبي!', {
-          body: 'هذا هو شكل الإشعار الذي سيصلك.',
-        });
+        new Notification('تنبيه تجريبي!', { body: 'هذا هو شكل الإشعار الذي سيصلك.' });
       } else if (notificationPermission === 'default') {
         setNotification('الرجاء تفعيل الإشعارات باستخدام الشريط في الأعلى.');
       } else {
@@ -254,12 +215,7 @@ const resetLeaderboard = () => {
       return;
     }
 
-    if (
-      tasks.some(
-        task =>
-          task.text.trim().toLowerCase() === trimmedText.toLowerCase()
-      )
-    ) {
+    if (tasks.some(task => task.text.trim().toLowerCase() === trimmedText.toLowerCase())) {
       setNotification('هذه المهمة موجودة بالفعل!');
       return;
     }
@@ -278,11 +234,7 @@ const resetLeaderboard = () => {
   };
 
   const toggleTask = (id: string) => {
-    setTasks(prev =>
-      prev.map(task =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
+    setTasks(prev => prev.map(task => (task.id === id ? { ...task, completed: !task.completed } : task)));
   };
 
   const deleteTask = (id: string) => {
@@ -290,12 +242,7 @@ const resetLeaderboard = () => {
   };
 
   const sortedTasks = useMemo(() => {
-    const priorityOrder: Record<TaskPriority, number> = {
-      high: 1,
-      medium: 2,
-      low: 3,
-    };
-
+    const priorityOrder: Record<TaskPriority, number> = { high: 1, medium: 2, low: 3 };
     return [...tasks].sort((a, b) => {
       const diff = priorityOrder[a.priority] - priorityOrder[b.priority];
       if (diff !== 0) return diff;
@@ -308,20 +255,12 @@ const resetLeaderboard = () => {
     const overdue: Task[] = [];
 
     sortedTasks.forEach(task => {
-      const isOverdue =
-        !task.completed &&
-        task.dueDate &&
-        new Date(task.dueDate) < currentTime;
-
+      const isOverdue = !task.completed && task.dueDate && new Date(task.dueDate) < currentTime;
       if (isOverdue) overdue.push(task);
       else today.push(task);
     });
 
-    const priorityOrder: Record<TaskPriority, number> = {
-      high: 1,
-      medium: 2,
-      low: 3,
-    };
+    const priorityOrder: Record<TaskPriority, number> = { high: 1, medium: 2, low: 3 };
 
     overdue.sort((a, b) => {
       const diff = priorityOrder[a.priority] - priorityOrder[b.priority];
@@ -346,11 +285,7 @@ const resetLeaderboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <audio
-        ref={audioRef}
-        src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"
-        preload="auto"
-      />
+      <audio ref={audioRef} src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" preload="auto" />
 
       <Header
         theme={theme}
@@ -368,24 +303,16 @@ const resetLeaderboard = () => {
       />
 
       {notificationPermission === 'default' && (
-        <NotificationPermissionBanner
-          onRequestPermission={handleRequestPermission}
-        />
+        <NotificationPermissionBanner onRequestPermission={handleRequestPermission} />
       )}
 
-      <NotificationComponent
-        message={notification}
-        onClose={() => setNotification(null)}
-      />
+      <NotificationComponent message={notification} onClose={() => setNotification(null)} />
 
       <main className="flex-grow p-4 md:p-6 pb-28">
         <div className="max-w-3xl mx-auto">
-          {currentView === 'tasks' ? (
+          {currentView === 'tasks' && (
             <>
-              <ProductivityTracker
-                percentage={productivityPercentage}
-                theme={theme}
-              />
+              <ProductivityTracker percentage={productivityPercentage} theme={theme} />
 
               <div className="mt-6 flex justify-center">
                 <button
@@ -416,12 +343,28 @@ const resetLeaderboard = () => {
               />
 
               <footer className="text-center p-4 text-xs text-zinc-500 dark:text-zinc-600 mt-8">
-                حقوق الطبع محفوظة لمشروع مادة مهارات الدراسة ©{' '}
-                {new Date().getFullYear()}
+                حقوق الطبع محفوظة لمشروع مادة مهارات الدراسة © {new Date().getFullYear()}
               </footer>
             </>
-          ) : (
-            <PomodoroTimer   theme={theme}   onFocusSessionComplete={(focusMinutes: number) => {     addFocusMinutesForSelectedUser(focusMinutes);   }} />
+          )}
+
+          {currentView === 'pomodoro' && (
+            <PomodoroTimer
+              theme={theme}
+              onWorkSessionComplete={(mins: number) => {
+                addFocusMinutesForSelectedUser(mins);
+              }}
+            />
+          )}
+
+          {currentView === 'leaderboard' && (
+            <Leaderboard
+              entries={leaderboard}
+              selectedName={selectedName}
+              onSelectName={setSelectedName}
+              onAddName={ensureNameExists}
+              onReset={resetLeaderboard}
+            />
           )}
         </div>
       </main>
