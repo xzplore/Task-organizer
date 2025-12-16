@@ -43,9 +43,6 @@ const Leaderboard: React.FC<Props> = ({
 
         <div className="mt-4 grid gap-3">
           <div className="grid gap-2">
-            <div className="text-sm text-zinc-600 dark:text-zinc-300">
-              اختر اسمك
-            </div>
 
             {allNames.length === 0 && (
               <div className="text-sm text-zinc-600 dark:text-zinc-300">
