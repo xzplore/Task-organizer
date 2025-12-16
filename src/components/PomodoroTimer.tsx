@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 type Mode = 'work' | 'shortBreak' | 'longBreak';
 
-const TIMES: { [key in Mode]: number } = {
+const TIMES: Record<Mode, number> = {
   work: 25 * 60,
   shortBreak: 5 * 60,
   longBreak: 15 * 60,
@@ -14,13 +14,17 @@ type PomodoroTimerProps = {
   onWorkSessionComplete?: (minutes: number) => void;
 };
 
-const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ theme, onWorkSessionComplete }) => {
+const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
+  theme,
+  onWorkSessionComplete,
+}) => {
   const [mode, setMode] = useState<Mode>('work');
   const [timeRemaining, setTimeRemaining] = useState(TIMES.work);
   const [isActive, setIsActive] = useState(false);
   const [pomodoros, setPomodoros] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const firedRef = useRef(false);
 
   useEffect(() => {
     audioRef.current = new Audio('https://www.soundjay.com/buttons/sounds/button-16.mp3');
@@ -31,9 +35,12 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ theme, onWorkSessionCompl
 
     if (isActive && timeRemaining > 0) {
       interval = window.setInterval(() => {
-        setTimeRemaining(time => time - 1);
+        setTimeRemaining(t => t - 1);
       }, 1000);
-    } else if (timeRemaining === 0) {
+    }
+
+    if (timeRemaining === 0 && !firedRef.current) {
+      firedRef.current = true;
       audioRef.current?.play();
       handleSessionEnd();
     }
@@ -43,11 +50,16 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ theme, onWorkSessionCompl
     };
   }, [isActive, timeRemaining]);
 
+  useEffect(() => {
+    firedRef.current = false;
+  }, [mode]);
+
   const handleSessionEnd = () => {
     setIsActive(false);
 
     if (mode === 'work') {
-      onWorkSessionComplete?.(25);
+      const workMinutes = Math.round(TIMES.work / 60);
+      onWorkSessionComplete?.(workMinutes);
 
       const newPomodoroCount = pomodoros + 1;
       setPomodoros(newPomodoroCount);
@@ -66,9 +78,10 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ theme, onWorkSessionCompl
     setTimeRemaining(TIMES.work);
   };
 
-  const toggleTimer = () => setIsActive(!isActive);
+  const toggleTimer = () => setIsActive(v => !v);
 
   const resetTimer = () => {
+    firedRef.current = false;
     setIsActive(false);
     setMode('work');
     setTimeRemaining(TIMES.work);
@@ -76,6 +89,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ theme, onWorkSessionCompl
   };
 
   const selectMode = (newMode: Mode) => {
+    firedRef.current = false;
     setIsActive(false);
     setMode(newMode);
     setTimeRemaining(TIMES[newMode]);
@@ -86,17 +100,20 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ theme, onWorkSessionCompl
 
   const percentage = ((TIMES[mode] - timeRemaining) / TIMES[mode]) * 100;
 
-  const data = [
-    { name: 'Elapsed', value: percentage },
-    { name: 'Remaining', value: 100 - percentage },
-  ];
+  const data = useMemo(
+    () => [
+      { name: 'Elapsed', value: percentage },
+      { name: 'Remaining', value: 100 - percentage },
+    ],
+    [percentage]
+  );
 
   const COLORS =
     theme === 'dark'
       ? ['#14b8a6', '#3f3f46']
       : ['#0d9488', '#e4e4e7'];
 
-  const modeText: { [key in Mode]: string } = {
+  const modeText: Record<Mode, string> = {
     work: 'وقت التركيز',
     shortBreak: 'استراحة قصيرة',
     longBreak: 'استراحة طويلة',
