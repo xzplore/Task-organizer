@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-type View = "tasks" | "pomodoro" | "leaderboard";
+type View = 'tasks' | 'pomodoro' | 'leaderboard';
 
 interface NavigationMenuProps {
   isOpen: boolean;
@@ -19,7 +19,12 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({
 
   const [studentsOpen, setStudentsOpen] = useState(false);
 
-  const students = ['البراء بن سالم بن سعيد البوسعيدي', 'محمد بن خالد بن خلفان الغاوي', 'شهاب بن خالد بن محمد القليبي', 'خميس عبدالله خميس الجهوري'];
+  const students = [
+    'البراء بن سالم بن سعيد البوسعيدي',
+    'محمد بن خالد بن خلفان الغاوي',
+    'شهاب بن خالد بن محمد القليبي',
+    'خميس عبدالله خميس الجهوري',
+  ];
 
   const linkStyles =
     'flex items-center gap-4 p-4 text-lg font-semibold rounded-lg transition-colors';
@@ -50,7 +55,10 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({
 
         <nav className="flex flex-col gap-4">
           <button
-            onClick={() => onNavigate('tasks')}
+            onClick={() => {
+              onNavigate('tasks');
+              onClose();
+            }}
             className={`${linkStyles} ${
               currentView === 'tasks'
                 ? activeLinkStyles
@@ -61,7 +69,10 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({
           </button>
 
           <button
-            onClick={() => onNavigate('pomodoro')}
+            onClick={() => {
+              onNavigate('pomodoro');
+              onClose();
+            }}
             className={`${linkStyles} ${
               currentView === 'pomodoro'
                 ? activeLinkStyles
@@ -72,14 +83,18 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({
           </button>
 
           <button
-  onClick={() => onNavigate("leaderboard")}
-  className={`${linkStyles} ${
-    currentView === "leaderboard" ? activeLinkStyles : inactiveLinkStyles
-  }`}
->
-  لوحة الصدارة
-</button>
-
+            onClick={() => {
+              onNavigate('leaderboard');
+              onClose();
+            }}
+            className={`${linkStyles} ${
+              currentView === 'leaderboard'
+                ? activeLinkStyles
+                : inactiveLinkStyles
+            }`}
+          >
+            لوحة الصدارة
+          </button>
 
           <button
             onClick={() => setStudentsOpen(v => !v)}
