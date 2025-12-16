@@ -47,23 +47,6 @@ const Leaderboard: React.FC<Props> = ({
               اختر اسمك
             </div>
 
-            <select
-              value={selectedName}
-              onChange={e => onSelectName(e.target.value)}
-              className="w-full rounded-xl p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700"
-              dir="rtl"
-            >
-              <option value="" disabled>
-                اختر اسمك
-              </option>
-
-              {allNames.map(n => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-
             {allNames.length === 0 && (
               <div className="text-sm text-zinc-600 dark:text-zinc-300">
                 لا يوجد أسماء بعد. أضف اسمك.
