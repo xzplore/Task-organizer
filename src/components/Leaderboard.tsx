@@ -113,7 +113,7 @@ const Leaderboard: React.FC<Props> = ({
               </div>
 
               <div className="font-bold text-cyan-700 dark:text-cyan-300">
-                {e.minutes} عدد جلسات البرومودورو
+                {e.minutes} دقيقة
               </div>
             </div>
           ))}
